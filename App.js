@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, TextInput, ScrollView, Alert, Dimensions } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, TextInput, ScrollView, Alert, Dimensions, Platform } from 'react-native';
 import { theme } from './color';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FontAwesome5 } from '@expo/vector-icons';
@@ -12,9 +12,13 @@ export default function App() {
   const [working, setWorking] = useState(true)
   const [text, setText] = useState('')
   const [toDos, setToDos] = useState({})
+  const [isChecked, setIsChecked] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editText, setEditText] = useState('')
   const [editKey, setEditKey] = useState('')
+
+  const onChangeText = (payload) => setText(payload)
+  const onChangeEditText = (payload) => setEditText(payload)
 
   useEffect(() => {
     loadToDos(),
@@ -34,74 +38,115 @@ export default function App() {
     setWorking(true)
     saveTheState(true)
   }
-  const onChangeText = (payload) => setText(payload)
-  const onChangeEditText = (payload) => setEditText(payload)
-
   const deleteTodo = async (key) => {
-    Alert.alert("Delete To Do?", "Are you sure?", [
-      { text: "Cancel" },
-      {
-        text: "I'm Sure",
-        style: "destructive",
-        onPress: () => {
-          const newToDos = { ...toDos }
-          delete newToDos[key]
-          setToDos(newToDos)
-          saveToDos(newToDos)
-        }
+    if (Platform.OS === 'web') {
+      const ok = confirm("Do you want delete this To Do?")
+      if (ok) {
+        const newToDos = { ...toDos }
+        delete newToDos[key]
+        setToDos(newToDos)
+        saveToDos(newToDos)
       }
-    ])
-  }
+    }
+    else {
+      try {
+        Alert.alert("Delete To Do?", "Are you sure?", [
+          { text: "Cancel" },
+          {
+            text: "I'm Sure",
+            style: "destructive",
+            onPress: () => {
+              const newToDos = { ...toDos }
+              delete newToDos[key]
+              setToDos(newToDos)
+              saveToDos(newToDos)
+            }
+          }
+        ])
+      }
+      catch (err) {
+        console.log(err)
+      }
+    }
 
+  }
   const editTodo = async (key) => {
     setEditing(true)
     setEditText((toDos[key].text))
     setEditKey(key)
   }
-
-
   const editConfirm = async () => {
-
-    Alert.alert("Edit To Do?", "Are you sure?", [
-      { text: "Cancel" },
-      {
-        text: "I'm Sure",
-        style: "destructive",
-        onPress: async () => {
-          const newToDos = {
-            ...toDos
-          }
-          if (editText === '') {
-            setText('')
-            setEditing(false)
-          }
-          else (
-            newToDos[editKey].text = editText)
-          setToDos(newToDos)
-          await saveToDos(newToDos)
+    if (Platform.OS === 'web') {
+      const ok = confirm("Do you want edit this To Do?")
+      if (ok) {
+        const newToDos = {
+          ...toDos
+        }
+        if (editText === '') {
           setText('')
           setEditing(false)
         }
+        else (
+          newToDos[editKey].text = editText)
+        setToDos(newToDos)
+        saveToDos(newToDos)
+        setText('')
+        setEditing(false)
       }
-    ])
+    }
+    else {
+      try {
+        Alert.alert("Edit To Do?", "Are you sure?", [
+          { text: "Cancel" },
+          {
+            text: "I'm Sure",
+            style: "destructive",
+            onPress: async () => {
+              const newToDos = {
+                ...toDos
+              }
+              if (editText === '') {
+                setText('')
+                setEditing(false)
+              }
+              else (
+                newToDos[editKey].text = editText)
+              setToDos(newToDos)
+              await saveToDos(newToDos)
+              setText('')
+              setEditing(false)
+            }
+          }
+        ])
+      }
+      catch (err) {
+        console.log(err)
+      }
+
+    }
+
+
+
 
   }
-
   const addToDo = async () => {
-    if (text === '') {
-      return
+    try {
+      if (text === '') {
+        return
+      }
+      const newToDos = {
+        ...toDos,
+        [Date.now()]: { text, working, isChecked }
+      }
+      setToDos(newToDos)
+      await saveToDos(newToDos)
+      setText('')
     }
-    const newToDos = {
-      ...toDos,
-      [Date.now()]: { text, working }
+    catch (err) {
+      console.log(err)
     }
-    setToDos(newToDos)
-    await saveToDos(newToDos)
-    setText('')
 
   }
-
-
   const saveToDos = async (toSave) => {
     try {
       await AsyncStorage.setItem(STORAGE_KEY1, JSON.stringify(toSave))
@@ -118,10 +163,32 @@ export default function App() {
       console.log(err)
     }
   }
+  const checkTodo = async (key) => {
+    try {
+      const newToDos = { ...toDos }
+      if (newToDos[key].isChecked === false) {
+        newToDos[key].isChecked = true
+      }
+      else {
+        newToDos[key].isChecked = false
+      }
+
+      setToDos(newToDos)
+      await saveToDos(newToDos)
+
+      console.log(newToDos[key].isChecked)
+
+    }
+    catch (err) {
+      console.log(err)
+    }
+
+  }
   const loadToDos = async () => {
     try {
       const list = await AsyncStorage.getItem(STORAGE_KEY1)
-      setToDos(JSON.parse(list))
+      if (list) setToDos(JSON.parse(list))
+
     }
     catch (err) {
       console.log(err)
@@ -130,12 +197,15 @@ export default function App() {
   const loadHeaders = async () => {
     try {
       const state = await AsyncStorage.getItem(STORAGE_KEY2)
-      state !== null ? setWorking(JSON.parse(state)) : null
+      // state !== null ? setWorking(JSON.parse(state)) : null
+      if (state) setWorking(JSON.parse(state))
     }
     catch (err) {
       console.log(err)
     }
   }
+
+
 
 
   return (
@@ -144,15 +214,17 @@ export default function App() {
 
         <TouchableOpacity onPress={work}>
           <Text style={{
-            ...styles.btnText,
-            color: working ? "white" : theme.grey
+            fontSize: 44,
+            fontWeight: "600",
+            color: !working ? "#C3E9E8" : theme.grey
           }}>Work</Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={travel}>
           <Text style={{
-            ...styles.btnText, color:
-              !working ? "white" : theme.grey
+            fontSize: 44,
+            fontWeight: "600", color:
+              working ? "#C3E9E8" : theme.grey
           }}>Travel</Text>
         </TouchableOpacity>
 
@@ -164,6 +236,7 @@ export default function App() {
         value={text}
         onChangeText={onChangeText}
         placeholder={working ? "Add a To Do" : "Where do you want to go?"}
+        placeholderTextColor="#5497A7"
         style={styles.input}>
       </TextInput>)
         :
@@ -183,20 +256,34 @@ export default function App() {
             toDos[key].working === working ?
               (
                 <View style={styles.toDo} key={key}>
-                  <Text style={styles.toDoText}>
+                  <TouchableOpacity onPress={() => checkTodo(key)}>
+                    <Text>
+                      {
+                        toDos[key].isChecked ?
+                          (<FontAwesome5 name="check-circle" size={20} color="#5497A7" />)
+                          :
+                          (<FontAwesome5 name="circle" size={20} color="#5497A7" />)
+                      }
+                    </Text>
+                  </TouchableOpacity>
+
+                  <Text style={{
+                    ...styles.toDoText,
+                    textDecorationLine: toDos[key].isChecked ? theme.lineThrough : 'none'
+                  }}>
                     {toDos[key].text}
                   </Text>
                   <View style={styles.funcBtn}>
 
                     <TouchableOpacity onPress={() => editTodo(key)}>
                       <Text>
-                        <FontAwesome5 name="edit" size={16} color="white" />
+                        <FontAwesome5 name="edit" size={16} color="#5497A7" />
                       </Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity onPress={() => deleteTodo(key)}>
                       <Text>
-                        <FontAwesome5 name="trash-alt" size={14} color='white' />
+                        <FontAwesome5 name="trash-alt" size={14} color='#5497A7' />
                       </Text>
                     </TouchableOpacity>
 
@@ -214,6 +301,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.bg,
+    paddingHorizontal: 4,
+    paddingVertical: 10
   },
   header: {
     flexDirection: 'row',
@@ -222,8 +311,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20
   },
   btnText: {
-    fontSize: 44,
-    fontWeight: "600"
+
 
   },
   input: {
@@ -247,14 +335,23 @@ const styles = StyleSheet.create({
 
   },
   toDoText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "500"
+    flex: 0.9,
+    color: "#5497A7",
+    fontSize: 18,
+    fontWeight: "500",
   },
   funcBtn: {
-    width: FUNCBTN_WIDTH / 10,
+    width: FUNCBTN_WIDTH / 9,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between'
+  },
+  checkBtn: {
+    justifyContent: 'center',
+    alignItems: 'center',
+
   }
 });
+
+
+

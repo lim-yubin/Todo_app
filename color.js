@@ -1,5 +1,7 @@
 export const theme = {
-    bg: "#CEECF5",
-    grey: "#3A3D40",
-    toDoBg: "#2C2C2C"
+    bg: "#78CAD2",
+    grey: "#338E8B",
+    toDoBg: "#FFE799",
+    lineThrough: 'line-through'
+
 }
