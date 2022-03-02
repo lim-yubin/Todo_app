@@ -12,6 +12,9 @@ export default function App() {
   const [working, setWorking] = useState(true)
   const [text, setText] = useState('')
   const [toDos, setToDos] = useState({})
+  const [editing, setEditing] = useState(false)
+  const [editText, setEditText] = useState('')
+  const [editKey, setEditKey] = useState('')
 
   useEffect(() => {
     loadToDos(),
@@ -32,7 +35,7 @@ export default function App() {
     saveTheState(true)
   }
   const onChangeText = (payload) => setText(payload)
-
+  const onChangeEditText = (payload) => setEditText(payload)
 
   const deleteTodo = async (key) => {
     Alert.alert("Delete To Do?", "Are you sure?", [
@@ -51,6 +54,36 @@ export default function App() {
   }
 
   const editTodo = async (key) => {
+    setEditing(true)
+    setEditText((toDos[key].text))
+    setEditKey(key)
+  }
+
+
+  const editConfirm = async () => {
+
+    Alert.alert("Edit To Do?", "Are you sure?", [
+      { text: "Cancel" },
+      {
+        text: "I'm Sure",
+        style: "destructive",
+        onPress: async () => {
+          const newToDos = {
+            ...toDos
+          }
+          if (editText === '') {
+            setText('')
+            setEditing(false)
+          }
+          else (
+            newToDos[editKey].text = editText)
+          setToDos(newToDos)
+          await saveToDos(newToDos)
+          setText('')
+          setEditing(false)
+        }
+      }
+    ])
 
   }
 
@@ -65,6 +98,7 @@ export default function App() {
     setToDos(newToDos)
     await saveToDos(newToDos)
     setText('')
+
   }
 
 
@@ -123,7 +157,7 @@ export default function App() {
         </TouchableOpacity>
 
       </View>
-      <TextInput
+      {!editing ? (<TextInput
         maxLength={50}
         returnKeyType='done'
         onSubmitEditing={addToDo}
@@ -131,8 +165,17 @@ export default function App() {
         onChangeText={onChangeText}
         placeholder={working ? "Add a To Do" : "Where do you want to go?"}
         style={styles.input}>
+      </TextInput>)
+        :
+        (<TextInput
+          maxLength={50}
+          returnKeyType='done'
+          onSubmitEditing={editConfirm}
+          value={editText}
+          onChangeText={onChangeEditText}
+          style={styles.input}>
+        </TextInput>)}
 
-      </TextInput>
 
       <ScrollView>
         {
