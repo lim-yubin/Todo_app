@@ -1,17 +1,58 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, TextInput, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, TextInput, ScrollView, Alert, Dimensions } from 'react-native';
 import { theme } from './color';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { FontAwesome5 } from '@expo/vector-icons';
 
-const STORAGE_KEY = "@toDos"
+const STORAGE_KEY1 = "@toDos"
+const STORAGE_KEY2 = "@saveTheState"
+const FUNCBTN_WIDTH = Dimensions.get('window').width
 export default function App() {
   const [working, setWorking] = useState(true)
   const [text, setText] = useState('')
   const [toDos, setToDos] = useState({})
-  const travel = () => setWorking(false)
-  const work = () => setWorking(true)
+
+  useEffect(() => {
+    loadToDos(),
+      loadHeaders()
+  }, [])
+
+  useEffect(() => {
+    saveTheState()
+  }, [working])
+
+
+  const travel = () => {
+    setWorking(false)
+    saveTheState(false)
+  }
+  const work = () => {
+    setWorking(true)
+    saveTheState(true)
+  }
   const onChangeText = (payload) => setText(payload)
+
+
+  const deleteTodo = async (key) => {
+    Alert.alert("Delete To Do?", "Are you sure?", [
+      { text: "Cancel" },
+      {
+        text: "I'm Sure",
+        style: "destructive",
+        onPress: () => {
+          const newToDos = { ...toDos }
+          delete newToDos[key]
+          setToDos(newToDos)
+          saveToDos(newToDos)
+        }
+      }
+    ])
+  }
+
+  const editTodo = async (key) => {
+
+  }
 
   const addToDo = async () => {
     if (text === '') {
@@ -25,16 +66,44 @@ export default function App() {
     await saveToDos(newToDos)
     setText('')
   }
+
+
   const saveToDos = async (toSave) => {
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(toSave))
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY1, JSON.stringify(toSave))
+    }
+    catch (err) {
+      console.log(err)
+    }
+  }
+  const saveTheState = async () => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY2, JSON.stringify(working))
+    }
+    catch (err) {
+      console.log(err)
+    }
   }
   const loadToDos = async () => {
-    const s = await AsyncStorage.getItem(STORAGE_KEY)
-    setToDos(JSON.parse(s))
+    try {
+      const list = await AsyncStorage.getItem(STORAGE_KEY1)
+      setToDos(JSON.parse(list))
+    }
+    catch (err) {
+      console.log(err)
+    }
   }
-  useEffect(() => {
-    loadToDos()
-  }, [])
+  const loadHeaders = async () => {
+    try {
+      const state = await AsyncStorage.getItem(STORAGE_KEY2)
+      state !== null ? setWorking(JSON.parse(state)) : null
+    }
+    catch (err) {
+      console.log(err)
+    }
+  }
+
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -55,6 +124,7 @@ export default function App() {
 
       </View>
       <TextInput
+        maxLength={50}
         returnKeyType='done'
         onSubmitEditing={addToDo}
         value={text}
@@ -73,6 +143,21 @@ export default function App() {
                   <Text style={styles.toDoText}>
                     {toDos[key].text}
                   </Text>
+                  <View style={styles.funcBtn}>
+
+                    <TouchableOpacity onPress={() => editTodo(key)}>
+                      <Text>
+                        <FontAwesome5 name="edit" size={16} color="white" />
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity onPress={() => deleteTodo(key)}>
+                      <Text>
+                        <FontAwesome5 name="trash-alt" size={14} color='white' />
+                      </Text>
+                    </TouchableOpacity>
+
+                  </View>
                 </View>
               )
               : null)
@@ -113,11 +198,20 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     paddingHorizontal: 40,
     borderRadius: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
 
   },
   toDoText: {
     color: "white",
     fontSize: 16,
     fontWeight: "500"
+  },
+  funcBtn: {
+    width: FUNCBTN_WIDTH / 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
   }
 });
